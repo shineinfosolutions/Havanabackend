@@ -56,10 +56,9 @@ const uploadBase64ToCloudinary = async (base64String) => {
 };
 
 // 🔹 Generate sequential GRC number (resets on April 1st each financial year)
-// Uses retry loop to handle race conditions on concurrent bookings
 const generateGRC = async () => {
   const now = new Date();
-  const currentMonth = now.getMonth(); // 0-based
+  const currentMonth = now.getMonth();
   const currentYear = now.getFullYear();
   const financialYear = currentMonth >= 3 ? currentYear : currentYear - 1;
   const financialYearStart = new Date(financialYear, 3, 1, 0, 0, 0, 0);
@@ -80,11 +79,14 @@ const generateGRC = async () => {
 
     const candidate = `GRC${nextNumber.toString().padStart(4, '0')}`;
 
-    // Check if this GRC is already taken (handles race condition)
-    const exists = await Booking.findOne({ grcNo: candidate }, { _id: 1 }).lean();
-    if (!exists) return candidate;
+    // Only check for collision within the SAME financial year (not globally)
+    // GRC0001 from last year should not block GRC0001 this year
+    const collision = await Booking.findOne({
+      grcNo: candidate,
+      createdAt: { $gte: financialYearStart, $lte: financialYearEnd }
+    }, { _id: 1 }).lean();
 
-    // If taken, loop again — next iteration will pick a higher number
+    if (!collision) return candidate;
   }
 
   throw new Error('Failed to generate unique GRC after multiple attempts');
