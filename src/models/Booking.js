@@ -219,7 +219,7 @@ bookingSchema.pre('save', async function(next) {
     this.invoiceNumber = `HH/${month}/${String(nextNum).padStart(4, '0')}`;
   }
   
-  if (this.actualCheckOutTime && this.status === 'Checked Out' && !this.lateCheckoutFine.applied && this.timeOut) {
+  if (!this.$locals?.skipLateFeeRecalc && this.actualCheckOutTime && this.status === 'Checked Out' && !this.lateCheckoutFine.applied && this.timeOut) {
     const [hours, minutes] = this.timeOut.split(':').map(Number);
     const expectedTime = new Date(this.checkOutDate);
     expectedTime.setHours(hours, minutes, 0, 0);

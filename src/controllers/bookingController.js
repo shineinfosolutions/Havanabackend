@@ -450,7 +450,9 @@ exports.getBookings = async (req, res) => {
       {
         $project: {
           grcNo: 1, bookingNo: 1, invoiceNumber: 1, name: 1, mobileNo: 1, roomNumber: 1,
-          checkInDate: 1, checkOutDate: 1, status: 1, rate: 1, taxableAmount: 1,
+          checkInDate: 1, checkOutDate: 1, timeIn: 1, timeOut: 1,
+          actualCheckInTime: 1, actualCheckOutTime: 1, lateCheckoutFine: 1,
+          status: 1, rate: 1, taxableAmount: 1,
           cgstRate: 1, sgstRate: 1, cgstAmount: 1, sgstAmount: 1,
           salutation: 1, age: 1, gender: 1, address: 1, city: 1, nationality: 1,
           email: 1, phoneNo: 1, birthDate: 1, anniversary: 1,
@@ -934,6 +936,11 @@ exports.updateBooking = async (req, res) => {
       if (updates.additionalAmount) {
         booking.rate = (booking.rate || 0) + updates.additionalAmount;
       }
+    }
+
+    // When actualCheckOutTime is manually edited, do not (re)compute the late-checkout fine
+    if (typeof updates.actualCheckOutTime !== 'undefined') {
+      booking.$locals.skipLateFeeRecalc = true;
     }
 
     await booking.save({ validateBeforeSave: false });

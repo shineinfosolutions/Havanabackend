@@ -39,7 +39,9 @@ const housekeepingRoutes = require("./src/routes/housekeepingRoutes.js");
 
 const { connectAuditDB } = require("./src/config/auditDatabase.js");
 const { optimizeDatabase } = require("./src/utils/dbOptimization.js");
-const { performanceMonitor } = require("./src/middleware/performanceMonitor.js");
+const {
+  performanceMonitor,
+} = require("./src/middleware/performanceMonitor.js");
 const path = require("path");
 
 // Initialize express app
@@ -49,7 +51,7 @@ const app = express();
 const allowedOrigins = [
   "http://localhost:5173",
   "http://localhost:4000",
-  "https://havana-f-swart.vercel.app"
+  "https://havana-f-seven.vercel.app",
 ];
 
 app.use(
@@ -57,14 +59,14 @@ app.use(
     origin: allowedOrigins,
     credentials: true,
     optionsSuccessStatus: 204,
-  })
+  }),
 );
 app.use(express.json({ limit: "50mb" }));
 app.use(performanceMonitor);
 
 // Block ALL socket.io requests silently without logging
 app.use((req, res, next) => {
-  if (req.url.includes('socket.io')) {
+  if (req.url.includes("socket.io")) {
     res.writeHead(404);
     res.end();
     return;
@@ -96,20 +98,19 @@ const connectToMongoDB = async () => {
       minPoolSize: 0,
       maxIdleTimeMS: 10000,
       retryWrites: true,
-      w: 'majority'
+      w: "majority",
     };
-    
+
     await mongoose.connect(process.env.MONGO_URI, connectionOptions);
     isConnected = true;
     console.log("MongoDB connected successfully");
-    
+
     // Optimize database with indexes (run once after connection is stable)
     setTimeout(async () => {
       if (mongoose.connection.readyState === 1) {
         await optimizeDatabase();
       }
     }, 1000);
-    
   } catch (error) {
     console.error("Database connection failed:", error.message);
     isConnected = false;
@@ -162,7 +163,6 @@ app.use("/api/sub-reports", subReportsRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/housekeeping", housekeepingRoutes);
 
-
 // Health check endpoint
 app.get("/health", async (req, res) => {
   try {
@@ -170,13 +170,13 @@ app.get("/health", async (req, res) => {
     res.json({
       status: "ok",
       dbConnected: isConnected,
-      connectionState: mongoose.connection.readyState
+      connectionState: mongoose.connection.readyState,
     });
   } catch (error) {
     res.json({
       status: "error",
       dbConnected: false,
-      error: error.message
+      error: error.message,
     });
   }
 });
@@ -191,13 +191,13 @@ app.get("/test-db", async (req, res) => {
       message: "Database connection successful",
       dbName: mongoose.connection.name,
       readyState: mongoose.connection.readyState,
-      ping: testConnection
+      ping: testConnection,
     });
   } catch (error) {
     res.status(500).json({
       error: "Database test failed",
       message: error.message,
-      readyState: mongoose.connection.readyState
+      readyState: mongoose.connection.readyState,
     });
   }
 });
