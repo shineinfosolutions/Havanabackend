@@ -204,19 +204,41 @@ bookingSchema.pre('save', async function(next) {
   
   if (!this.invoiceNumber) {
     const month = String(new Date().getMonth() + 1).padStart(2, '0');
-    const lastInvoice = await this.constructor.findOne(
-      { deleted: { $ne: true }, invoiceNumber: { $exists: true, $ne: null } },
+    const prefix = `HH/${month}/`;
+
+    // Find all existing invoice numbers for the current month
+    const existingBookings = await this.constructor.find(
+      { invoiceNumber: { $regex: new RegExp(`^${prefix}\\d+$`) } },
       { invoiceNumber: 1 }
-    ).sort({ createdAt: -1 }).lean();
-    
-    let nextNum = 1;
-    if (lastInvoice && lastInvoice.invoiceNumber) {
-      const parts = lastInvoice.invoiceNumber.split('/');
-      if (parts.length === 3) {
-        nextNum = parseInt(parts[2]) + 1;
+    ).lean();
+
+    let maxNum = 0;
+    if (existingBookings && existingBookings.length > 0) {
+      existingBookings.forEach(item => {
+        if (item.invoiceNumber) {
+          const parts = item.invoiceNumber.split('/');
+          if (parts.length === 3) {
+            const num = parseInt(parts[2], 10);
+            if (!isNaN(num) && num > maxNum) {
+              maxNum = num;
+            }
+          }
+        }
+      });
+    }
+
+    let nextNum = maxNum + 1;
+    let unique = false;
+    while (!unique) {
+      const candidate = `${prefix}${String(nextNum).padStart(4, '0')}`;
+      const collision = await this.constructor.findOne({ invoiceNumber: candidate }, { _id: 1 }).lean();
+      if (!collision) {
+        this.invoiceNumber = candidate;
+        unique = true;
+      } else {
+        nextNum++;
       }
     }
-    this.invoiceNumber = `HH/${month}/${String(nextNum).padStart(4, '0')}`;
   }
   
   if (!this.$locals?.skipLateFeeRecalc && this.actualCheckOutTime && this.status === 'Checked Out' && !this.lateCheckoutFine.applied && this.timeOut) {
